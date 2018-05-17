@@ -4,6 +4,20 @@ from ..items import FlipkartItem
 import json, csv, os
 import hashlib
 
+urls_list = []
+category_title = {}
+category_path = {}
+
+def initial_fetching():
+    with open('Flipkart_Map.csv', newline='') as csvfile:
+        spamreader = csv.reader(csvfile, delimiter=',', quotechar='|')
+    for row in spamreader:
+        urls_list.append(row[3])
+    row[0] = row[0].replace("*", ",")
+    category_title[row[0]] = row[1]
+    category_path[row[0]] = row[2]
+
+initial_fetching()()
 class FlipkartcrawlerSpider(scrapy.Spider):
     name = "FlipkartCrawler"
     custom_settings = {
@@ -12,23 +26,29 @@ class FlipkartcrawlerSpider(scrapy.Spider):
         }
     }
     # enter the urls to crawl as a list here
-    start_urls = ['https://www.flipkart.com/sarees/pr?otracker=nmenu_sub_Women_0_Sarees&otracker=nmenu_sub_Women_0_Sarees&page=50&sid=2oq%2Cc1r%2C3pj%2C7od&viewType=grid']
+    start_urls = urls_list
     item_id = 1
     page_number = 0
 
     def parse(self, response):
         # get contents in script tag which has media in it
         self.page_number = response.url[response.url.find('page=')+len('page='):response.url.rfind('&sid')]
+        category = ""
+        for list in response.css('div._2YW4dZ'):
+            catName = list.css('a._3X09-_::text').extract_first()
+            category += catName + ':'
+        category = category.replace("\n", "")
+        category = category.replace(" ", "")
         csv_file_name = response.url[:response.url.rfind('/')]
         csv_file_name = csv_file_name[csv_file_name.rfind('/')+len('/'):]
-        if not os.path.exists('/datasets'):
-            os.makedirs('datasets')
-        csv_file_name = 'datasets/flipkart_' + csv_file_name.replace('/', '_') + '.csv'
+        if not os.path.exists('dataSet/Flipkart/'):
+            os.makedirs('dataSet/Flipkart/')
+        csv_file_name = 'dataSet/Flipkart/flipkart_' + category_title[category] + '.csv'
         data = response.xpath("//script[contains(., 'media')]/text()").extract_first()
         if data is not None:
-            data = data.encode('utf-8')
             data = data.replace('"apiError":{}};\n', '"apiError":{}}')
             data = data.replace('window.__INITIAL_STATE__ = ', '')
+            data = data.encode('utf-8')
 
             # convert the string to Json object
             raw_json = json.loads(data)
@@ -52,16 +72,18 @@ class FlipkartcrawlerSpider(scrapy.Spider):
                         for image in images_list:
                             image = self.convert_keys_to_string(image)
                             # replace the width, height and quality fields in the url
-                            image_url = image['url'].encode('utf-8').replace('{@width}', '300')
-                            image_url = image_url.encode('utf-8').replace('{@height}', '300')
-                            image_url = image_url.encode('utf-8').replace('{@quality}', '100')
-                            hash_object = hashlib.sha1(image_url)
+                            image_url = image['url'].replace('{@width}', '300')
+                            image_url = image_url.replace('{@height}', '300')
+                            image_url = image_url.replace('{@quality}', '100')
+
+                            hash_object = hashlib.sha1(image_url.encode('utf-8'))
                             hex_dig = hash_object.hexdigest()
                             writer.writerow({'id': self.item_id, 'page_number': self.page_number, 'flipkart_product_id': flipkart_item_id, 'title': title,
                                              'key_specs': key_specs, 'analytics_data': analytics_data, 'rating': rating,
                                              'file_name': str(hex_dig)+'.jpeg', 'url': image_url})
                             # download the images from the url
-                            yield FlipkartItem(image_urls=[image_url], page_url=response.url)
+                            image_path = category_path[category].replace(">","/")
+                            yield FlipkartItem(image_urls=[image_url], image_paths=[image_path])
                             self.item_id = self.item_id+1
                     except Exception as e:
                         print (e)

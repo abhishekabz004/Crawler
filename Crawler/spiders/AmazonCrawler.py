@@ -6,6 +6,7 @@ import os.path
 from ..items import AmazonItem
 
 #Initial reading from amazon map csv
+print("this is getting executed")
 url_list = []
 cat_title = {}
 cat_path = {}
@@ -20,9 +21,9 @@ with open('Amazon_Map.csv', newline='') as csvfile:
 #Class to write extracted dataSet details into csv
 class csvWriter():
 	def initiate(self,path):
-		filePath =  "dataSet/amazon_"+path.lower()+".csv"
-		if not os.path.exists(os.path.dirname("dataSet/")):
-			os.makedirs(os.path.dirname("dataSet/"))
+		filePath =  "dataSet/Amazon/amazon_"+path.lower()+".csv"
+		if not os.path.exists(os.path.dirname("dataSet/Amazon/")):
+			os.makedirs(os.path.dirname("dataSet/Amazon/"))
 		if not os.path.isfile(filePath):
 			with open(filePath, 'w') as csvfile:
 				self.fieldname = ['Id', 'Name', 'ProductId', 'ImageUrl', 'ProductUrl', 'Review', 'Cost', 'Category','ImagePath']
@@ -30,7 +31,7 @@ class csvWriter():
 				self.writer.writeheader()
 
 	def write(self, pId, name, p_id, imgUrl, pUrl, review, cost, cat, imgPath):
-		filePath = "dataSet/amazon_"+cat+".csv"
+		filePath = "dataSet/Amazon/amazon_"+cat+".csv"
 		with open(filePath , 'a') as csvfile:
 			self.fieldname = ['Id', 'Name', 'ProductId', 'ImageUrl', 'ProductUrl', 'Review', 'Cost', 'Category', 'ImagePath']
 			self.writer = csv.DictWriter(csvfile, fieldnames=self.fieldname)

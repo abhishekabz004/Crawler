@@ -18,7 +18,7 @@ class AmazonPipeline(ImagesPipeline):
 		return 'thumbs/%s/%s.jpg' % (thumb_id, image_guid)
 
 	def file_path(self, request, response=None, info=None):
-		return request.meta.get('filename', '')
+		return 'Amazon/' +request.meta.get('filename', '')
 
 	def get_media_requests(self, item, info):
 		meta = {'filename': item['image_paths']}
@@ -34,11 +34,14 @@ class AmazonPipeline(ImagesPipeline):
 
 
 class FlipkartPipeline(ImagesPipeline):
-    def file_path(self, request, response=None, info=None):
-        image_path = request.meta['page_url'][:request.meta['page_url'].rfind('/')]
-        image_path = image_path[image_path.rfind('/') + len('/'):]
-        image_guid = '/flipkart/'+ image_path + '/' + hashlib.sha1(request.url).hexdigest() +'.jpg'
-        return image_guid
+	def file_path(self, request, response=None, info=None):
+		try:
+			image_path = request.meta['image_paths']
+			image_guid = 'Flipkart/'+image_path + '/' + hashlib.sha1(request.url.encode('utf-8')).hexdigest() +'.jpg'
+			return image_guid
+		except Exception as e:
+			print("Exception during crawling images: "+e)
 
-    def get_media_requests(self, item, info):
-        yield scrapy.Request(item['image_urls'][0], meta=item)
+	def get_media_requests(self, item, info):
+		imgUrl = item['image_urls'][0]
+		yield scrapy.Request(url=item['image_urls'][0], meta=item)
