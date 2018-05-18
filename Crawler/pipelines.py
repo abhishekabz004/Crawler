@@ -36,12 +36,11 @@ class AmazonPipeline(ImagesPipeline):
 class FlipkartPipeline(ImagesPipeline):
 	def file_path(self, request, response=None, info=None):
 		try:
-			image_path = request.meta['image_paths']
-			image_guid = 'Flipkart/'+image_path + '/' + hashlib.sha1(request.url.encode('utf-8')).hexdigest() +'.jpg'
+			image_path = request.meta['page_url']
+			image_guid = 'Flipkart/'+image_path[0] + '/' + hashlib.sha1(request.url.encode('utf-8')).hexdigest() +'.jpg'
 			return image_guid
 		except Exception as e:
 			print("Exception during crawling images: "+e)
 
 	def get_media_requests(self, item, info):
-		imgUrl = item['image_urls'][0]
 		yield scrapy.Request(url=item['image_urls'][0], meta=item)

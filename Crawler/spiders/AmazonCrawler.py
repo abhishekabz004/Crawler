@@ -3,21 +3,10 @@ import scrapy
 import hashlib
 import csv
 import os.path
+from ..Utils import ipReader
 from ..items import AmazonItem
 
-#Initial reading from amazon map csv
-print("this is getting executed")
-url_list = []
-cat_title = {}
-cat_path = {}
-with open('Amazon_Map.csv', newline='') as csvfile:
-	spamreader = csv.reader(csvfile, delimiter=',', quotechar='|')
-	for row in spamreader:
-		url_list.append(row[3])
-		row[0] = row[0].replace("*",",")
-		cat_title[row[0]] = row[1]
-		cat_path[row[0]] = row[2]
-
+amazonReader = ipReader()
 #Class to write extracted dataSet details into csv
 class csvWriter():
 	def initiate(self,path):
@@ -47,6 +36,7 @@ class AmazoncrawlerSpider(scrapy.Spider):
 			'Crawler.pipelines.AmazonPipeline': 1
 		}
 	}
+
 	#Function that finds the page number for consecutive searching
 	def findBetween(self, s, first, last):
 		try:
@@ -56,7 +46,8 @@ class AmazoncrawlerSpider(scrapy.Spider):
 		except ValueError:
 			return ""
 
-	start_urls = url_list
+	amazonReader.readFile('Amazon_Map.csv')
+	start_urls = amazonReader.url_list
 	
 	def parse(self, response):
 		category = response.css('h4.a-size-small.a-color-base.a-text-bold::text').extract_first()
@@ -69,13 +60,13 @@ class AmazoncrawlerSpider(scrapy.Spider):
 		superCat = superCat.replace("\n","")
 		superCat = superCat.replace(" ","")
 		wholeCat = superCat+category          #Used for mapping the extracted title to the available category title
-		csvObj.initiate(cat_title[wholeCat])  
+		csvObj.initiate(amazonReader.category_title[wholeCat])
 
 		for product in response.css('li.s-result-item'):
 			image_url = product.css('img.s-access-image.cfMarker::attr(src)').extract_first()
 			hashObj = hashlib.sha1(image_url.encode('utf-8'))
 			hashDig = hashObj.hexdigest()
-			image_path = cat_path[wholeCat].replace(">","/") + "/" + hashDig + ".jpg"
+			image_path = amazonReader.category_path[wholeCat].replace(">","/") + "/" + hashDig + ".jpg"
 			if image_url:
 				yield AmazonItem(image_urls=[image_url], image_paths=str(image_path))
 			id = product.css('li::attr(id)').extract_first()
@@ -89,14 +80,14 @@ class AmazoncrawlerSpider(scrapy.Spider):
 			if p_cost:
 				p_cost = p_cost.replace("-","")
 				p_cost = p_cost.replace(" ","")
-			csvObj.write(id, p_name, p_id, image_url, p_url, p_review, p_cost, cat_title[wholeCat], image_path )
+			csvObj.write(id, p_name, p_id, image_url, p_url, p_review, p_cost, amazonReader.category_title[wholeCat], image_path )
 			image_url = product.css('div.s-hidden a.a-link-normal.a-text-normal div::attr(data-search-image-source)').extract_first()
 			if image_url:
 				hashObj = hashlib.sha1(image_url.encode('utf-8'))
 				hashDig = hashObj.hexdigest()
-				image_path = cat_path[wholeCat].replace(">","/") + "/" + hashDig + ".jpg"
+				image_path = amazonReader.category_path[wholeCat].replace(">","/") + "/" + hashDig + ".jpg"
 				yield AmazonItem(image_urls=[image_url], image_paths=str(image_path))
-				csvObj.write(id, p_name, p_id, image_url, p_url, p_review, p_cost, cat_title[wholeCat], image_path)
+				csvObj.write(id, p_name, p_id, image_url, p_url, p_review, p_cost, amazonReader.category_title[wholeCat], image_path)
 
 		next_page = response.css('a.pagnNext::attr(href)').extract_first()
 		curPg = int(self.findBetween(next_page, "page=", "&rh="))

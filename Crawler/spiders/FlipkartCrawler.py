@@ -1,23 +1,11 @@
 import scrapy
 
 from ..items import FlipkartItem
+from ..Utils import ipReader
 import json, csv, os
 import hashlib
 
-urls_list = []
-category_title = {}
-category_path = {}
-
-def initial_fetching():
-    with open('Flipkart_Map.csv', newline='') as csvfile:
-        spamreader = csv.reader(csvfile, delimiter=',', quotechar='|')
-    for row in spamreader:
-        urls_list.append(row[3])
-    row[0] = row[0].replace("*", ",")
-    category_title[row[0]] = row[1]
-    category_path[row[0]] = row[2]
-
-initial_fetching()()
+flipkartReader = ipReader()
 class FlipkartcrawlerSpider(scrapy.Spider):
     name = "FlipkartCrawler"
     custom_settings = {
@@ -25,8 +13,11 @@ class FlipkartcrawlerSpider(scrapy.Spider):
             'Crawler.pipelines.FlipkartPipeline': 1
         }
     }
+
     # enter the urls to crawl as a list here
-    start_urls = urls_list
+    flipkartReader.initiate()
+    flipkartReader.readFile('Flipkart_Map.csv')
+    start_urls = flipkartReader.url_list
     item_id = 1
     page_number = 0
 
@@ -36,14 +27,14 @@ class FlipkartcrawlerSpider(scrapy.Spider):
         category = ""
         for list in response.css('div._2YW4dZ'):
             catName = list.css('a._3X09-_::text').extract_first()
-            category += catName + ':'
+            category += catName.replace("\\", "") + ':'
         category = category.replace("\n", "")
         category = category.replace(" ", "")
         csv_file_name = response.url[:response.url.rfind('/')]
         csv_file_name = csv_file_name[csv_file_name.rfind('/')+len('/'):]
         if not os.path.exists('dataSet/Flipkart/'):
             os.makedirs('dataSet/Flipkart/')
-        csv_file_name = 'dataSet/Flipkart/flipkart_' + category_title[category] + '.csv'
+        csv_file_name = 'dataSet/Flipkart/flipkart_' + flipkartReader.category_title[category] + '.csv'
         data = response.xpath("//script[contains(., 'media')]/text()").extract_first()
         if data is not None:
             data = data.replace('"apiError":{}};\n', '"apiError":{}}')
@@ -82,12 +73,13 @@ class FlipkartcrawlerSpider(scrapy.Spider):
                                              'key_specs': key_specs, 'analytics_data': analytics_data, 'rating': rating,
                                              'file_name': str(hex_dig)+'.jpeg', 'url': image_url})
                             # download the images from the url
-                            image_path = category_path[category].replace(">","/")
-                            yield FlipkartItem(image_urls=[image_url], image_paths=[image_path])
+                            image_path = flipkartReader.category_path[category].replace(">","/")
+                            yield FlipkartItem(image_urls=[image_url], page_url=[image_path])
                             self.item_id = self.item_id+1
                     except Exception as e:
                         print (e)
 
+            
             # check if next page is available
             next_page = response.css('div._2kUstJ a::attr(href)').extract()[-1]
             if next_page is not None:
